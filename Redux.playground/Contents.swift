@@ -68,11 +68,8 @@ class Store {
 let store = Store(reducers: [currentValue])
 print(store.getState())
 
-do {
-    try store.dispatch(action: add(1))
-    print(store.getState())
-} catch {
-    print("Deu erro!")
-}
+try? store.dispatch(action: add(1))
+print(store.getState())
 
-
+try? store.dispatch(action: add(3))
+print(store.getState())
