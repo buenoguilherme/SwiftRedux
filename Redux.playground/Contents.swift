@@ -28,12 +28,9 @@ struct Reducer: ReducerType {
 }
 
 let currentValue = Reducer(stateName: "currentValue", initialValue: 0) { state, action in
-    print("dentro do reducer 1: \(state)")
     guard let state = state as? Int else {
         throw ReduxError.typeError
     }
-
-    print("dentro do reducer 2: \(state)")
 
     switch action {
     case .add(let number):
