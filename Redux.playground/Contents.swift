@@ -27,24 +27,6 @@ struct Reducer: ReducerType {
     let f: (Any, Action) throws -> Any
 }
 
-let currentValue = Reducer(stateName: "currentValue", initialValue: 0) { state, action in
-    guard let state = state as? Int else {
-        throw ReduxError.typeError
-    }
-
-    switch action {
-    case .add(let number):
-        return state + number
-    default:
-        return state
-    }
-}
-
-func add(_ number: Int) -> Action {
-    return .add(number: number)
-}
-
-
 class Store {
     private var state: State = State()
     private let reducers: [Reducer]
@@ -63,6 +45,23 @@ class Store {
     func getState() -> State {
         return state
     }
+}
+
+let currentValue = Reducer(stateName: "currentValue", initialValue: 0) { state, action in
+    guard let state = state as? Int else {
+        throw ReduxError.typeError
+    }
+
+    switch action {
+    case .add(let number):
+        return state + number
+    default:
+        return state
+    }
+}
+
+func add(_ number: Int) -> Action {
+    return .add(number: number)
 }
 
 let store = Store(reducers: [currentValue])
