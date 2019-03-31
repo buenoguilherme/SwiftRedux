@@ -6,36 +6,23 @@ enum ReduxError: Error {
     case typeError
 }
 
-enum Action {
-    case add(number: Int)
-    case minus(number: Int)
-}
+protocol Action {}
 
-protocol ReducerType {
-    associatedtype StateType
-
-    var stateName: String { get }
-    var initialValue: StateType { get }
-    var f: (StateType, Action) throws -> StateType { get }
-}
-
-struct Reducer: ReducerType {
-    typealias StateType = Any
-
+struct Reducer<T> where T: Action {
     let stateName: String
     let initialValue: Any
-    let f: (Any, Action) throws -> Any
+    let f: (Any, T) throws -> Any
 }
 
-class Store {
+class Store<T> where T: Action {
     private var state: State = State()
-    private let reducers: [Reducer]
+    private var reducers: [Reducer<T>]
 
-    init(reducers: [Reducer]) {
+    init(reducers: [Reducer<T>]) {
         self.reducers = reducers
     }
 
-    func dispatch(action: Action) throws {
+    func dispatch(action: T) throws {
         try reducers.forEach { reducer in
             let reducerState = state[reducer.stateName] ?? reducer.initialValue
             state[reducer.stateName] = try reducer.f(reducerState, action)
@@ -47,7 +34,13 @@ class Store {
     }
 }
 
-let currentValue = Reducer(stateName: "currentValue", initialValue: 0) { state, action in
+enum CalculatorAction: Action {
+    case add(number: Int)
+    case minus(number: Int)
+}
+
+
+let currentValue = Reducer<CalculatorAction>(stateName: "currentValue", initialValue: 0) { state, action in
     guard let state = state as? Int else {
         throw ReduxError.typeError
     }
@@ -55,20 +48,20 @@ let currentValue = Reducer(stateName: "currentValue", initialValue: 0) { state, 
     switch action {
     case .add(let number):
         return state + number
-    default:
-        return state
+    case .minus(let number):
+        return state - number
     }
 }
 
-func add(_ number: Int) -> Action {
-    return .add(number: number)
-}
 
 let store = Store(reducers: [currentValue])
 print(store.getState())
 
-try? store.dispatch(action: add(1))
+try? store.dispatch(action: .add(number: 1))
 print(store.getState())
 
-try? store.dispatch(action: add(3))
+try? store.dispatch(action: .add(number: 2))
+print(store.getState())
+
+try? store.dispatch(action: .minus(number: 10))
 print(store.getState())
