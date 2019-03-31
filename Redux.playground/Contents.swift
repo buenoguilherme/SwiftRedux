@@ -22,6 +22,19 @@ protocol StoreSubscriber {
     func new(_ state: Any)
 }
 
+protocol TypedStoreSubscriber {
+    associatedtype StateType
+    func new(typed state: StateType)
+}
+
+extension TypedStoreSubscriber where Self: StoreSubscriber {
+    func new(_ state: Any) {
+        if let state = state as? StateType {
+            new(typed: state)
+        }
+    }
+}
+
 class Store<T> where T: Action {
     private var state: State = State()
     private var reducers: [Reducer<T>]
@@ -81,11 +94,11 @@ let currentValue = Reducer<CalculatorAction>(state: CalculatorState.currentValue
     }
 }
 
-struct StoreListener: StoreSubscriber {
-    func new(_ state: Any) {
-        if let state = state as? Int {
-            print(state)
-        }
+struct StoreListener: StoreSubscriber, TypedStoreSubscriber {
+    typealias StateType = Int
+
+    func new(typed state: StateType) {
+        print(state)
     }
 }
 
