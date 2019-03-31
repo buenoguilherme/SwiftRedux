@@ -8,15 +8,24 @@ enum ReduxError: Error {
 
 protocol Action {}
 
+protocol AppState {
+    var name: String { get }
+}
+
 struct Reducer<T> where T: Action {
-    let stateName: String
+    let state: AppState
     let initialValue: Any
     let f: (Any, T) throws -> Any
+}
+
+protocol StoreSubscriber {
+    func new(_ state: Any)
 }
 
 class Store<T> where T: Action {
     private var state: State = State()
     private var reducers: [Reducer<T>]
+    private var subscribers: [String: [StoreSubscriber]] = [String: [StoreSubscriber]]()
 
     init(reducers: [Reducer<T>]) {
         self.reducers = reducers
@@ -24,13 +33,22 @@ class Store<T> where T: Action {
 
     func dispatch(action: T) throws {
         try reducers.forEach { reducer in
-            let reducerState = state[reducer.stateName] ?? reducer.initialValue
-            state[reducer.stateName] = try reducer.f(reducerState, action)
+            let reducerState = state[reducer.state.name] ?? reducer.initialValue
+            state[reducer.state.name] = try reducer.f(reducerState, action)
+            notify(reducer.state)
         }
     }
 
-    func getState() -> State {
-        return state
+    private func notify(_ appState: AppState) {
+        if let state = state[appState.name] {
+            subscribers[appState.name]?.forEach { $0.new(state) }
+        }
+    }
+
+    func add(subscriber: StoreSubscriber, to state: AppState) {
+        var values: [StoreSubscriber] = subscribers[state.name] ?? []
+        values.append(subscriber)
+        subscribers.updateValue(values, forKey: state.name)
     }
 }
 
@@ -39,8 +57,18 @@ enum CalculatorAction: Action {
     case minus(number: Int)
 }
 
+enum CalculatorState: AppState {
+    case currentValue
 
-let currentValue = Reducer<CalculatorAction>(stateName: "currentValue", initialValue: 0) { state, action in
+    var name: String {
+        switch self {
+        case .currentValue:
+            return "currentValue"
+        }
+    }
+}
+
+let currentValue = Reducer<CalculatorAction>(state: CalculatorState.currentValue, initialValue: 0) { state, action in
     guard let state = state as? Int else {
         throw ReduxError.typeError
     }
@@ -53,15 +81,18 @@ let currentValue = Reducer<CalculatorAction>(stateName: "currentValue", initialV
     }
 }
 
+struct StoreListener: StoreSubscriber {
+    func new(_ state: Any) {
+        if let state = state as? Int {
+            print(state)
+        }
+    }
+}
 
 let store = Store(reducers: [currentValue])
-print(store.getState())
+store.add(subscriber: StoreListener(), to: CalculatorState.currentValue)
 
 try? store.dispatch(action: .add(number: 1))
-print(store.getState())
-
 try? store.dispatch(action: .add(number: 2))
-print(store.getState())
-
 try? store.dispatch(action: .minus(number: 10))
-print(store.getState())
+
