@@ -19,26 +19,13 @@ struct Reducer<T> where T: Action {
 }
 
 protocol StoreSubscriber {
-    func new(_ state: Any)
-}
-
-protocol TypedStoreSubscriber {
-    associatedtype StateType
-    func new(typed state: StateType)
-}
-
-extension TypedStoreSubscriber where Self: StoreSubscriber {
-    func new(_ state: Any) {
-        if let state = state as? StateType {
-            new(typed: state)
-        }
-    }
+    func new(_ state: State)
 }
 
 class Store<T> where T: Action {
     private var state: State = State()
     private var reducers: [Reducer<T>]
-    private var subscribers: [String: [StoreSubscriber]] = [String: [StoreSubscriber]]()
+    private var subscribers: [StoreSubscriber] = [StoreSubscriber]()
 
     init(reducers: [Reducer<T>]) {
         self.reducers = reducers
@@ -48,20 +35,16 @@ class Store<T> where T: Action {
         try reducers.forEach { reducer in
             let reducerState = state[reducer.state.name] ?? reducer.initialValue
             state[reducer.state.name] = try reducer.f(reducerState, action)
-            notify(reducer.state)
         }
+        notifyAll()
     }
 
-    private func notify(_ appState: AppState) {
-        if let state = state[appState.name] {
-            subscribers[appState.name]?.forEach { $0.new(state) }
-        }
+    private func notifyAll() {
+        subscribers.forEach { $0.new(state) }
     }
 
-    func add(subscriber: StoreSubscriber, to state: AppState) {
-        var values: [StoreSubscriber] = subscribers[state.name] ?? []
-        values.append(subscriber)
-        subscribers.updateValue(values, forKey: state.name)
+    func add(subscriber: StoreSubscriber) {
+        subscribers.append(subscriber)
     }
 }
 
@@ -94,16 +77,14 @@ let currentValue = Reducer<CalculatorAction>(state: CalculatorState.currentValue
     }
 }
 
-struct StoreListener: StoreSubscriber, TypedStoreSubscriber {
-    typealias StateType = Int
-
-    func new(typed state: StateType) {
+struct StoreListener: StoreSubscriber {
+    func new(_ state: State) {
         print(state)
     }
 }
 
 let store = Store(reducers: [currentValue])
-store.add(subscriber: StoreListener(), to: CalculatorState.currentValue)
+store.add(subscriber: StoreListener())
 
 try? store.dispatch(action: .add(number: 1))
 try? store.dispatch(action: .add(number: 2))
